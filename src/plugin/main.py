@@ -1,9 +1,7 @@
 import logging
-import json
-from typing import List
 
 from spaceone.monitoring.plugin.webhook.lib.server import WebhookPluginServer
-from plugin.manager.event_manager import EventManager
+from plugin.manager.event_manager.base import ParseManager
 
 _LOGGER = logging.getLogger('spaceone')
 
@@ -69,11 +67,21 @@ def event_parse(params: dict) -> dict:
             'image_url': ''
         }
     """
-    options = params['options']
-    data = params['data']
+    options = params["options"]
+    data = params["data"]
 
-    event_mgr = EventManager()
-    return event_mgr.parse(data["Message"])
+    # Check if webhook messages are SNS subscription
+    webhook_type = _get_webhook_type(data)
+    parse_mgr = ParseManager.get_parse_manager_by_webhook_type(webhook_type)
+
+    if webhook_type == "AWS_SNS":
+        return parse_mgr.parse(data)
+    else:
+        return parse_mgr.parse(data.get("Message", {}))
 
 
-
+def _get_webhook_type(data: dict) -> str:
+    if data.get("Type") == "SubscriptionConfirmation":
+        return "AWS_SNS"
+    else:
+        return "AWS_CLOUDWATCH"
