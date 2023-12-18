@@ -1,4 +1,5 @@
 import logging
+import json
 
 from spaceone.monitoring.plugin.webhook.lib.server import WebhookPluginServer
 from plugin.manager.event_manager.base import ParseManager
@@ -77,7 +78,7 @@ def event_parse(params: dict) -> dict:
     if webhook_type == "AWS_SNS":
         return parse_mgr.parse(data)
     else:
-        return parse_mgr.parse(data.get("Message", {}))
+        return parse_mgr.parse(json.loads(data.get("Message", "")))
 
 
 def _get_webhook_type(data: dict) -> str:
