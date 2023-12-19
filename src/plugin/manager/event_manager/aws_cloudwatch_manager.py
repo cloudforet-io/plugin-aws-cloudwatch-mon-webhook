@@ -37,7 +37,7 @@ class AWSCloudWatchManager(ParseManager):
             "resource": self._get_resource(alarm_type, raw_data),
             "description": self._get_description(raw_data),
             "occurred_at": self.convert_to_iso8601(raw_data.get("StateChangeTime")),
-            "account": self._get_account_id(alarm_type, raw_data),
+            "account": self._get_account_id(raw_data),
             "additional_info": self.get_additional_info(alarm_type, raw_data)
         }
         results.append(event)
@@ -157,14 +157,9 @@ class AWSCloudWatchManager(ParseManager):
         elif alarm_type == "STATIC_THRESHOLD":
             return raw_data.get("Trigger", {})
 
-    def _get_account_id(self, alarm_type, raw_data: dict) -> str:
-        if alarm_type == "METRIC_MATH_FUNCTION":
-            if self._get_metrics_cnt(alarm_type, raw_data) > 0:
-                return raw_data.get("Trigger", {}).get("Metrics", [])[0].get("AccountId")
-            else:
-                return ""
-        elif alarm_type == "STATIC_THRESHOLD":
-            return raw_data.get("Trigger", {}).get("AccountId", "")
+    @staticmethod
+    def _get_account_id(raw_data: dict) -> str:
+        return raw_data.get("AWSAccountId", "")
 
     @staticmethod
     def _get_metrics_cnt(alarm_type, raw_data: dict) -> int:
