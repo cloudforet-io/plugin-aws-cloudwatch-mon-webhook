@@ -37,7 +37,7 @@ class AWSCloudWatchManager(ParseManager):
             "resource": self._get_resource(alarm_type, raw_data),
             "description": self._get_description(raw_data),
             "occurred_at": self.convert_to_iso8601(raw_data.get("StateChangeTime")),
-            "account": self._get_account_id(raw_data),
+            "account": raw_data.get("AWSAccountId", ""),
             "additional_info": self.get_additional_info(alarm_type, raw_data)
         }
         results.append(event)
@@ -102,32 +102,32 @@ class AWSCloudWatchManager(ParseManager):
 
     def _get_resource_id(self, alarm_type, raw_data: dict) -> str:
         values = []
-        metric_stat = self._get_value_from_metrics(alarm_type, raw_data, "MetricStat")
+        metric = self._get_metric(alarm_type, raw_data)
 
-        if metric_stat is None:
+        if metric is None:
             return ""
 
-        for dimension in metric_stat.get("Metric", {}).get("Dimensions", []):
+        for dimension in metric.get("Dimensions", []):
             values.append(dimension.get("value", ""))
 
         return ",".join(values)
 
     def _get_resource_type(self, alarm_type, raw_data: dict) -> str:
-        metric_stat = self._get_value_from_metrics(alarm_type, raw_data, "MetricStat")
-        if metric_stat is None:
+        metric = self._get_metric(alarm_type, raw_data)
+        if metric == {}:
             return ""
 
-        return metric_stat.get("Metric", {}).get("Namespace", "")
+        return metric.get("Namespace", "")
 
     def _get_resource_name(self, alarm_type, raw_data: dict) -> str:
         namespace = self._get_resource_type(alarm_type, raw_data)
-        metric_stat = self._get_value_from_metrics(alarm_type, raw_data, "MetricStat")
+        metric = self._get_metric(alarm_type, raw_data)
 
-        if metric_stat is None:
+        if metric == {}:
             return ""
 
         r_list = []
-        for dimension in metric_stat.get("Metric", {}).get("Dimensions", []):
+        for dimension in metric.get("Dimensions", []):
             r_list.append(dimension.get("name", "") + "=" + dimension.get("value", ""))
         resource_names = ",".join(r_list)
 
@@ -148,18 +148,14 @@ class AWSCloudWatchManager(ParseManager):
         elif raw_data.get("Trigger", {}).get("Dimensions"):
             return "STATIC_THRESHOLD"
 
-    def _get_value_from_metrics(self, alarm_type, raw_data: dict, key: str) -> Union[str, dict, bool, None]:
+    def _get_metric(self, alarm_type: str, raw_data: dict) -> dict:
         if alarm_type == "METRIC_MATH_FUNCTION":
             if self._get_metrics_cnt(alarm_type, raw_data) > 0:
-                return raw_data.get("Trigger", {}).get("Metrics", [])[0].get(key)
+                return raw_data.get("Trigger", {}).get("Metrics", [])[0]
             else:
-                return ""
+                return {}
         elif alarm_type == "STATIC_THRESHOLD":
             return raw_data.get("Trigger", {})
-
-    @staticmethod
-    def _get_account_id(raw_data: dict) -> str:
-        return raw_data.get("AWSAccountId", "")
 
     @staticmethod
     def _get_metrics_cnt(alarm_type, raw_data: dict) -> int:
@@ -176,15 +172,13 @@ class AWSCloudWatchManager(ParseManager):
             "OldStateValue": raw_data.get("OldStateValue", ""),
             "Region": raw_data.get("Region", "")
         }
-        metric_stat = self._get_value_from_metrics(alarm_type, raw_data, "MetricStat")
-        if metric_stat is None:
+        metric = self._get_metric(alarm_type, raw_data)
+        if metric == {}:
             return additional_info
         else:
             additional_info.update({
-                "MetricName": self._get_value_from_metrics(alarm_type, raw_data, "MetricStat").get("Metric", {}).get(
-                    "MetricName", ""),
-                "Namespace": self._get_value_from_metrics(alarm_type, raw_data, "MetricStat").get("Metric", {}).get(
-                    "Namespace", "")
+                "MetricName": self._get_metric(alarm_type, raw_data).get("MetricName", ""),
+                "Namespace": self._get_metric(alarm_type, raw_data).get("Namespace", "")
             })
 
         return additional_info
