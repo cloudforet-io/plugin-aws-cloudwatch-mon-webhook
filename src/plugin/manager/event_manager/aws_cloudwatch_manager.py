@@ -152,7 +152,7 @@ class AWSCloudWatchManager(ParseManager):
     def _get_metric(self, alarm_type: str, raw_data: dict) -> dict:
         if alarm_type == "METRIC_MATH_FUNCTION":
             if self._get_metrics_cnt(alarm_type, raw_data) > 0:
-                return raw_data.get("Trigger", {}).get("Metrics", [])[0].get("MetricStat", {})
+                return raw_data.get("Trigger", {}).get("Metrics", [])[0].get("MetricStat", {}).get("Metric", {})
             else:
                 return {}
         elif alarm_type == "STATIC_THRESHOLD":
