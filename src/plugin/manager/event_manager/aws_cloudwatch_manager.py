@@ -127,6 +127,7 @@ class AWSCloudWatchManager(ParseManager):
             return ""
 
         r_list = []
+
         for dimension in metric.get("Dimensions", []):
             r_list.append(dimension.get("name", "") + "=" + dimension.get("value", ""))
         resource_names = ",".join(r_list)
@@ -151,7 +152,7 @@ class AWSCloudWatchManager(ParseManager):
     def _get_metric(self, alarm_type: str, raw_data: dict) -> dict:
         if alarm_type == "METRIC_MATH_FUNCTION":
             if self._get_metrics_cnt(alarm_type, raw_data) > 0:
-                return raw_data.get("Trigger", {}).get("Metrics", [])[0]
+                return raw_data.get("Trigger", {}).get("Metrics", [])[0].get("MetricStat", {})
             else:
                 return {}
         elif alarm_type == "STATIC_THRESHOLD":
